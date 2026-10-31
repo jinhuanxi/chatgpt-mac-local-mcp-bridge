@@ -1,21 +1,20 @@
 {
-  "name": "chatgpt-mac-local-mcp-bridge",
-  "version": "0.1.0",
+  "name": "mac-local-mcp-bridge",
+  "version": "0.2.1",
   "private": true,
-  "description": "Self-hosted, workspace-scoped MCP tools for ChatGPT through OpenAI Secure MCP Tunnel",
   "type": "module",
+  "description": "Scoped local Mac file and Playwright tools for ChatGPT via Secure MCP Tunnel",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "test": "node --test",
-    "check": "node --check src/server.mjs && node --check src/path-policy.mjs",
-    "browser:install": "npx playwright install chromium"
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/server.mjs && node --check src/sandbox.mjs && node --check src/browser.mjs && node --check src/project.mjs && node --check src/devtools.mjs && node --test tests/*.test.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.0.0",
+    "@modelcontextprotocol/sdk": "^1.20.2",
     "playwright": "^1.57.0",
-    "zod": "^4.0.0"
+    "zod": "^3.25.76"
   }
 }

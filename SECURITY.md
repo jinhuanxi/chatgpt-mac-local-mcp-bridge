@@ -1,14 +1,10 @@
-# Security notes (read before enabling developer tools)
+# Security model and known limitations
 
-This is a self-hosted **reference implementation**, not a security-audited sandbox. OpenAI Secure MCP Tunnel provides private connectivity, **not** filesystem or command sandboxing.
-
-- **File scope:** file tools reject hidden paths, parent traversal and pre-existing symlinks. TOCTOU races remain possible if an untrusted local process alters directories during operations.
-- **Project commands:** disabled by default. If enabled, npm scripts and dependencies execute arbitrary code with the macOS user's privileges and CAN access files outside the workspace. Use only trusted projects. A dedicated macOS account or VM is recommended.
-- **Credentials:** never commit API keys or personal tunnel profiles. The example LaunchAgent reads its runtime key from macOS Keychain. Child npm processes inherit a restricted set of environment variables, but this is not an OS sandbox.
-- **Approval:** enable ChatGPT confirmations for file writes, package installation, server lifecycle and sensitive browser interactions. A tool description does not enforce approval.
-- **Browser:** a fresh Chromium context is created. Its HTTP requests are filtered by host allowlist, but WebSockets, DNS, engine behavior and embedded resources mean this is **not** a comprehensive network security boundary. Never use the tool to enter private credentials by default.
-- **Servers:** HOST=127.0.0.1 is requested but arbitrary npm dev scripts might ignore it. Check actual bound interface; never expose a development server unintentionally.
-- **Publishing:** scan the entire Git history for API keys, tunnel IDs, local logs, personal addresses, tokens and paths. Once committed publicly, deleting a secret file does not erase it from history.
-- **Testing:** syntax checks and limited path-policy tests are included. End-to-end deployment and security have NOT been independently audited.
-
-Report vulnerabilities privately to the repository owner. Never publish credentials in issues.
+- Explicit opt-in: ChatGPT workspace plugin permissions + Platform tunnel permissions + outbound `tunnel-client` + local config.
+- Transport: stdio. No HTTP port is opened by this MCP server. Official `tunnel-client` handles external connectivity.
+- Local files: workspace-root path checks; no absolute paths, hidden paths, symlink resolution or delete tool; 200 KiB max file read/write. These are app-layer checks, not an OS sandbox and not race-proof against a malicious concurrent local process.
+- URL navigation: explicit host allowlist, exact host match, HTTP(S) only; intercept outgoing browser requests and block out-of-allowlist destinations. Browser runs in an isolated Playwright Chromium, not user's existing Chrome profile.
+- Browser pages are untrusted. Their content should never be treated as authoritative instructions; verify any action with external effects before clicking.
+- No arbitrary shell tool. Optional `npm run test|build|lint` scripts **can do anything permitted to the local user account**, even outside the workspace; this capability is disabled by default and must only be enabled for trusted projects.
+- No key saved in project config. `CONTROL_PLANE_API_KEY` is read via hidden terminal prompt; inherited by local tunnel processes, and could be visible to appropriately privileged local tooling. Prefer restricted key and revoke when done.
+- Tested: built-in Node static checks, workspace sandbox unit tests and URL allowlist unit tests in the artifact creation environment. Full integration with npm packages, Chromium and the live OpenAI tunnel must be verified on the user's Mac.

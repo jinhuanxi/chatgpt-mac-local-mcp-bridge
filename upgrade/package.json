@@ -1,0 +1,20 @@
+{
+  "name": "mac-local-mcp-bridge",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "description": "Scoped local Mac file and Playwright tools for ChatGPT via Secure MCP Tunnel",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/server.mjs && node --check src/sandbox.mjs && node --check src/browser.mjs && node --check src/project.mjs && node --check src/devtools.mjs && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "playwright": "^1.57.0",
+    "zod": "^3.25.76"
+  }
+}

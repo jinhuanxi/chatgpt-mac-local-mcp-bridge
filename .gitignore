@@ -1,14 +1,17 @@
-node_modules/
+# Local config, secrets and dependencies (never upload)
+config.json
 .env
 .env.*
 !.env.example
-.DS_Store
+node_modules/
+.upgrade-backups/
 *.log
 *.pid
 *.pem
 *.key
 *.p12
 *.pfx
+.DS_Store
 coverage/
 test-results/
 playwright-report/

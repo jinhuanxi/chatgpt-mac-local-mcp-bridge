@@ -1,139 +1,149 @@
 # ChatGPT Web ↔ Mac Local MCP Bridge
 
-**A self-hosted 17-tool reference bridge for connecting ChatGPT Web to an authorized Mac workspace through OpenAI Secure MCP Tunnel.**
+**A working-source, self-hosted macOS MCP bridge for using ChatGPT Web with an explicitly authorized local workspace.**
 
-> **Experimental reference implementation.** This repository was written as an independent public example, **not copied from the owner's private Mac bridge**. Basic JavaScript syntax and path-policy tests were run during preparation. The published package has **not** passed a full npm-install / Playwright / ChatGPT end-to-end test. Treat the code as a learning starting point and review it before enabling any write/command tool. This is **not an official OpenAI product**.
+This repository is now based on the **original v0.2.1 Bridge that the maintainer successfully connected to ChatGPT**, rather than the earlier independent example. It contains the 17-tool implementation and the original developer-mode upgrade bundle.
 
-## How it works
+> **Open-source release notes:** Personal `config.json`, API keys, Tunnel IDs, macOS Keychain data, installed `node_modules`, local logs and backups were excluded. The published `src/project.mjs` also includes a small security hardening change: it no longer forwards the Tunnel's complete environment to child npm tasks, and it requires a named project subfolder. This public release has **not yet been tested end-to-end on a clean Mac**. This is a community project, not an official OpenAI app.
+
+## Architecture
 
 ```text
-ChatGPT web → Custom MCP plugin → Secure MCP Tunnel
-  → tunnel-client on your Mac → stdio Node.js MCP server
-  → isolated ~/AI-Projects workspace
+ChatGPT web (custom MCP plugin)
+   ↓
+OpenAI Secure MCP Tunnel (private outbound connection)
+   ↓
+tunnel-client on your Mac
+   ↓
+node src/server.mjs (stdio MCP server)
+   ↓
+Your chosen workspace (default: ~/Desktop/AI-Projects)
+   ├─ read / write approved files
+   ├─ independent Playwright Chromium browser
+   └─ optional npm tasks and managed development servers
 ```
 
-The tunnel handles the outbound connection, **not** file/command permissions. This repository defines those tools.
+This does **not** take over your existing signed-in Chrome session or your Mac's native GUI.
 
-## Tools (17)
+## All 17 tools
 
-| Group | Names |
-| --- | --- |
-| Workspace | `workspace_info`, `list_workspace`, `read_workspace_file`, `create_workspace_directory`, `write_workspace_file` |
-| Browser | `browser_open`, `browser_inspect`, `browser_click`, `browser_fill`, `browser_screenshot`, `browser_close` |
-| Developer | `run_project_task`, `dev_npm_install`, `dev_npm_task`, `dev_server_start`, `dev_server_status`, `dev_server_stop` |
+| Group | Tools |
+|---|---|
+| File workspace (5) | `workspace_info`, `list_workspace`, `read_workspace_file`, `create_workspace_directory`, `write_workspace_file` |
+| Isolated Playwright (6) | `browser_open`, `browser_inspect`, `browser_click`, `browser_fill`, `browser_screenshot`, `browser_close` |
+| Developer tools (6) | `run_project_task`, `dev_npm_install`, `dev_npm_task`, `dev_server_start`, `dev_server_status`, `dev_server_stop` |
 
-Files are restricted to the configured workspace by application-level checks; this is **not an operating-system sandbox**. Developer commands are **disabled by default**. Playwright runs a fresh Chromium instance and **does not use your logged-in personal Chrome profile**.
+**Development commands are disabled by default**. npm scripts execute code with your actual macOS account permissions. These tools are not an operating-system sandbox.
 
-## Requirements
+## 1. Requirements
 
-- macOS, Node.js 20+, npm
-- OpenAI [tunnel-client](https://github.com/openai/tunnel-client), a Tunnel ID and a restricted runtime API key
-- ChatGPT workspace permissions to install and use a custom Tunnel-backed MCP plugin
+- macOS (Playwright Chromium support depends on your macOS version)
+- Node.js **22+**, npm and internet connectivity
+- [OpenAI tunnel-client](https://github.com/openai/tunnel-client)
+- An OpenAI Platform Tunnel and a **restricted runtime key** (Tunnels Read + Use)
+- A ChatGPT workspace authorized to use custom MCP plugins
 
-## Setup
+Useful docs: [OpenAI Secure MCP Tunnels](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels).
+
+## 2. Install
 
 ```bash
 git clone https://github.com/jinhuanxi/chatgpt-mac-local-mcp-bridge.git
 cd chatgpt-mac-local-mcp-bridge
-zsh scripts/setup-macos.sh
-npm run check
-npm test
-npm run browser:install    # needed for browser tools only
+bash setup.command
 ```
 
-On first use the project root defaults to `~/AI-Projects`. Optionally set `MCP_WORKSPACE_ROOT` to a separate dedicated directory.
-
-### Create the tunnel
-
-1. Create a Tunnel in [OpenAI Platform](https://platform.openai.com/settings/organization/tunnels).
-2. Create a **least-privilege runtime key** with Tunnels Read + Use. Do not commit it.
-3. Install `tunnel-client` by following its [upstream instructions](https://github.com/openai/tunnel-client). On macOS with Homebrew, the command is typically `brew install openai/tools/tunnel-client`.
-4. Configure a local stdio profile pointing to **the absolute path of this repository**:
-
-```zsh
-read -s 'CONTROL_PLANE_API_KEY?Runtime API key: '
-echo
-export CONTROL_PLANE_API_KEY
-tunnel-client init --sample sample_mcp_stdio_local \
-  --profile mac-local-mcp \
-  --tunnel-id 'tunnel_YOUR_ID' \
-  --mcp-command 'node /ABSOLUTE/PATH/chatgpt-mac-local-mcp-bridge/src/server.mjs'
-tunnel-client doctor --profile mac-local-mcp --explain
-tunnel-client run --profile mac-local-mcp
-```
-
-Do not post the runtime key, its environment variable contents, or a real Tunnel ID in a public issue.
-
-### Connect in ChatGPT Web
-
-In a workspace that permits custom MCP plugins, add a custom MCP server with **Tunnel** as connection method, select the created Tunnel, review the tools/permissions, then publish or install it as required.
-
-Try calling `workspace_info`, then `list_workspace`. **A green connection indicator alone does not prove that tool calls work.** If you change the server and add tools, open the plugin's Tools dialog and **Refresh**, then save/publish the updated tools.
-
-### Enabling developer commands (optional, riskier)
+The setup script creates `config.json` from `config.example.json`, creates `~/Desktop/AI-Projects`, installs npm dependencies and a standalone Playwright Chromium, and runs checks. To rerun verification:
 
 ```bash
-MCP_ALLOW_PROJECT_COMMANDS=true tunnel-client run --profile mac-local-mcp
+npm run check
 ```
 
-You must run this with the desired environment **in the terminal that launches the client**. npm scripts can run arbitrary project code with your user permissions, so use only trusted projects and require approval in the ChatGPT plugin settings. A project directory must be a named subdirectory such as `hello-dev-server`, never `.`.
+If the `setup.command` script prompts you to press Enter, do so after checking the output.
 
-Try the local-only sample in [examples/hello-dev-server](examples/hello-dev-server). Copy the example directory to `~/AI-Projects/hello-dev-server`; after approval and enabling commands, call `dev_server_start`, `dev_server_status`, `browser_open(http://127.0.0.1:5173)`, `browser_inspect`, `browser_close`, and `dev_server_stop`.
+Before connecting ChatGPT, review the newly generated **local-only** `config.json`. For example:
 
-## Start automatically when logging in
-
-The optional scripts use macOS **Keychain** + a per-user **launchd LaunchAgent**. Read [SECURITY.md](SECURITY.md) first and **do not install a second LaunchAgent using the same Tunnel ID as an existing live service**.
-
-Create a Generic Password in Keychain Access:
-
-- Service: `mac-local-mcp-runtime`
-- Account: your macOS short user name
-- Password: your **complete** Runtime API Key
-
-Make sure `mac-local-mcp` is an existing tunnel-client profile. Then:
-
-```zsh
-zsh scripts/install-launch-agent.sh
-launchctl print "gui/$(id -u)/io.github.chatgpt-mac-local-mcp-bridge"
+```json
+{
+  "workspaceRoot": "~/Desktop/AI-Projects",
+  "allowedWebHosts": ["example.com", "localhost", "127.0.0.1"],
+  "browserHeadless": false,
+  "allowProjectCommands": false,
+  "allowedProjectTasks": ["test", "build", "lint", "typecheck"]
+}
 ```
 
-The launch agent starts at user login and uses KeepAlive to try restarting after process exit. If you need an HTTPS proxy, provide it to the LaunchAgent; GUI login sessions often do not inherit interactive terminal environment variables.
+Your actual `config.json` must stay private and is ignored by Git. Do not give the bridge access to your entire home directory.
 
-To uninstall *this example's* LaunchAgent without touching your workspace, key or tunnel:
+## 3. Establish an OpenAI Secure MCP Tunnel
 
-```zsh
-zsh scripts/uninstall-launch-agent.sh
+1. In [OpenAI Platform](https://platform.openai.com/settings/organization/tunnels), create a Tunnel.
+2. Create a **least-privilege runtime API key** with Tunnel Read + Use. Do not paste the key into ChatGPT, GitHub, or source files.
+3. Install the official `tunnel-client` following [upstream instructions](https://github.com/openai/tunnel-client).
+4. In the newly cloned repository run:
+
+```bash
+bash connect-tunnel.command
 ```
 
-## Configuration
+The script asks for the Tunnel ID, reads the API key without echoing it, initializes a `mac-local-mcp` profile targeting `src/server.mjs`, runs a diagnosis, and starts the Tunnel. Keep the terminal open while using this manual setup. If the upstream CLI changes, follow the updated official documentation rather than bypassing `doctor` errors.
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `MCP_WORKSPACE_ROOT` | `~/AI-Projects` | Authorized project root |
-| `MCP_ALLOWED_WEB_HOSTS` | `localhost,127.0.0.1,example.com` | Comma-separated browser host allowlist |
-| `MCP_ALLOW_PROJECT_COMMANDS` | `false` | Enable npm and managed dev-server tools |
-| `MCP_TUNNEL_PROFILE` | `mac-local-mcp` | Used by startup script |
+## 4. Connect ChatGPT Web
 
-The `CONTROL_PLANE_API_KEY` variable is for **tunnel-client**; the LaunchAgent script retrieves the key from the macOS Keychain instead of storing it in source control.
+In ChatGPT → **Plugins**, add a custom MCP server using **Tunnel**, select the corresponding Tunnel, review requested permissions, and publish/enable it as required by your workspace.
 
-## Safety and troubleshooting
+Try:
 
-- Keep this repository and its workspace separate from personal home files, browser profiles, API keys and SSH keys.
-- npm scripts, `npm install`, dev servers and browser clicks have consequential side effects. Enable ChatGPT confirmations.
-- Application path checks are not an OS sandbox. A malicious npm script can still access other files your macOS user can access.
-- If `tunnel-client doctor` says the API key environment variable is missing, the current terminal probably has not exported it; this does **not** itself prove the Keychain-backed background service is broken.
-- If tools are missing from ChatGPT after an upgrade, **Refresh** the custom plugin's tool inventory.
-- If `browser_open` cannot launch Chromium, run `npm run browser:install`.
-- If the tunnel is healthy but calls fail, verify ChatGPT actually invokes `workspace_info` instead of only checking the UI status.
+```text
+Use Mac Local MCP's workspace_info to show the authorized workspace.
+Do not create or modify any file.
+```
 
-See [SECURITY.md](SECURITY.md) for important limitations.
+Then test a safe write in a fresh demo folder. **An online indicator alone is not proof:** confirm ChatGPT actually calls the tool successfully.
 
-## 中文说明
+After upgrading tools, open the plugin's **Tools → Refresh**, enable the newly discovered tools and save changes. ChatGPT may retain an earlier tool snapshot until you refresh.
 
-这是一个**独立的开源参考版本**，不是从个人 Mac 上直接导出的原始程序。它让 ChatGPT 网页版通过 OpenAI Secure MCP Tunnel 调用受限目录中的文件工具、Playwright 和 npm 开发工具。**需要有权创建自定义 MCP 插件的 ChatGPT 工作区**。本项目已进行部分静态检查及路径测试，尚未完成全部端到端实测，不建议直接用于存放敏感资料的主账号。
+## 5. Enable npm development tools only if needed
+
+In your private `config.json`, set `allowProjectCommands` to `true` only after reviewing the risks. Then restart the local server or Tunnel client so the settings reload.
+
+- `dev_npm_install` installs packages with npm lifecycle scripts disabled; installed dependencies can still be risky.
+- `dev_npm_task` runs only `test`, `build`, `lint`, or `typecheck` that is present in `allowedProjectTasks` and the project's `package.json`.
+- `run_project_task` runs `test`, `build`, or `lint`.
+- `dev_server_start` attempts to restrict binding to `127.0.0.1`, but a project script can ignore the host argument.
+- Project commands operate on named subdirectories of the workspace, not the workspace root.
+
+**Keep user approval enabled** for file writes, package installation, browser actions with external effects and process management. An npm script can access files outside the workspace, even with the restricted task list.
+
+## 6. Developer-mode upgrade from an older 12-tool installation
+
+The [upgrade/](upgrade/) directory includes the **original v0.2.1 upgrade sources**, and the upgrade script has been adapted to avoid a hard-coded path in someone else's Downloads directory.
+
+**Do not run the upgrade script on a fresh clone:** this repository already contains all 17 tools. If you have a separate older 12-tool installation, first read [upgrade/README.md](upgrade/README.md), stop the Tunnel, back up the old directory and run the upgrade with an **explicit target path**, e.g.:
+
+```bash
+bash upgrade/upgrade.command "/absolute/path/to/your/old/mac-local-mcp-bridge"
+```
+
+Refresh the ChatGPT plugin's Tools list after restarting your local Tunnel.
+
+## 7. Auto-start when you sign in to your Mac
+
+The published project includes the working **application-level Bridge** and a manual Tunnel connection script. It does **not** upload the maintainer's personal macOS LaunchAgent, runtime key or Tunnel profile. To auto-start on your Mac, set up a **per-user launchd LaunchAgent** that launches the existing Tunnel profile, reading your runtime key securely (e.g. from macOS Keychain). If your network uses a local proxy, the background service needs that proxy's environment and may need retry logic until the proxy becomes available.
+
+Do not create a second live Tunnel client against the same connection without checking your existing background service.
+
+## Safety and testing
+
+- Workspace file tools block absolute paths, traversal, hidden paths and symlinks; checks are application-level only and **not race-proof**.
+- Browser automation opens a separate Chromium instance and restricts allowed HTTP(S) hostnames; it does not use your Chrome cookies.
+- npm tasks run as your user and are **not sandboxed**.
+- Do not commit or share `config.json`, API keys, Tunnel profile YAML, `node_modules`, backup files or logs.
+- **Verified on the owner's Mac:** 3 original unit tests passed (0 failures); ChatGPT was able to discover all 17 tool names and invoke an added tool.
+- **Not independently verified:** clean-machine installation of the sanitized public version, full Playwright/npm lifecycle flow, login-time autostart, and comprehensive security review.
+
+See [SECURITY.md](SECURITY.md) and the [original Chinese installation guide](docs/README-START-HERE.md) (written for the 12-tool baseline).
 
 ## License
 
-[MIT](LICENSE). Independent community reference implementation; **not affiliated with or endorsed by OpenAI**.
-
-Useful links: [Secure MCP Tunnel guide](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels), [tunnel-client](https://github.com/openai/tunnel-client), [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk).
+[MIT](LICENSE). This project is independent and is not affiliated with or endorsed by OpenAI.

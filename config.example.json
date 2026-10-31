@@ -1,0 +1,16 @@
+{
+  "workspaceRoot": "~/Desktop/AI-Projects",
+  "allowedWebHosts": [
+    "example.com",
+    "localhost",
+    "127.0.0.1"
+  ],
+  "browserHeadless": false,
+  "allowProjectCommands": false,
+  "allowedProjectTasks": [
+    "test",
+    "build",
+    "lint",
+    "typecheck"
+  ]
+}
