@@ -21,7 +21,8 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <key>KeepAlive</key><true/>
 <key>StandardOutPath</key><string>${esc(logdir)}/output.log</string>
 <key>StandardErrorPath</key><string>${esc(logdir)}/error.log</string>
-</dict></plist>\n`;
+</dict></plist>
+`;
 fs.writeFileSync(plist, xml, { mode: 0o600 });
 NODE
 launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
